@@ -1,7 +1,9 @@
+/* eslint-disable strict */
+
 'use strict';
 
 const { Pool } = require('pg');
-
+const logger = require('./logger');
 // Pool.prototype.updateNews = updateNews;
 
 const pool = new Pool({
@@ -16,7 +18,8 @@ const pool = new Pool({
 
 // успех {command: "CALL", rowCount: null, oid: null, rows: Array(0), fields: Array(0), …}
 
-pool.route_list = [{ route: '/get_news_list', db_method: 'f_get_news', call_type: 'SELECT' },
+pool.route_list = [
+    { route: '/get_news_list', db_method: 'f_get_news', call_type: 'SELECT' },
     { route: '/updateNews', db_method: 'p_update_news', call_type: 'CALL' },
     { route: '/addNews', db_method: 'p_add_news', call_type: 'CALL' },
     { route: '/get_clubs_list', db_method: 'f_get_clubs', call_type: 'SELECT' },
@@ -24,7 +27,13 @@ pool.route_list = [{ route: '/get_news_list', db_method: 'f_get_news', call_type
     { route: '/addClub', db_method: 'p_add_club', call_type: 'CALL' },
     { route: '/getEventsList', db_method: 'f_get_events', call_type: 'SELECT' },
     { route: '/updateEvent', db_method: 'p_update_event', call_type: 'CALL' },
-    { route: '/addEvent', db_method: 'p_add_event', call_type: 'CALL' }];
+    { route: '/addEvent', db_method: 'p_add_event', call_type: 'CALL' },
+    { route: '/loginUser', db_method: 'f_login_user', call_type: 'SELECT' },
+    { route: '/registerUser', db_method: 'f_register_user', call_type: 'SELECT' },
+    { route: '/addToken', db_method: 'f_insert_token', call_type: 'SELECT' },
+    { route: 'updateOrder', db_method: 'f_update_order', call_type: 'SELECT' },
+    { route: 'getNextOrder', db_method: 'f_get_next_order', call_type: 'SELECT' },
+];
 
 async function qquery(callType, dbMethod, params)
 {
@@ -45,12 +54,13 @@ async function qquery(callType, dbMethod, params)
         par += `$${t}`;
         if (i !== params.length - 1) par += ', ';
     }
-    str += `(' ${par} ');`;
+    str += `( ${par} );`;
     try
     {
         // console.log('_qquery ' + str);
+        // console.log('_qquery ' + JSON.stringify(params));
         const result = await pool.query(str, params);
-        let tmp;
+        let tmp = null;
         // console.log(result);
         // return result;
         if (callType === 'SELECT')
@@ -68,7 +78,7 @@ async function qquery(callType, dbMethod, params)
     }
     catch (e)
     {
-        console.log(`qquery error ${e}`);
+        logger.error({ message: `Query error: ${e.stack}` });
         throw new Error(e);
     }
 }
@@ -86,15 +96,16 @@ async function byRoute(route, payload)
     }
     catch (e)
     {
+        logger.error({ message: `Query by route error: ${e.stack}` });
         return ({ errorCode: 1, errorMessage: e.stack, responseCode: 500 });
     }
 }
 pool.byRoute = byRoute;
 
 // получает следующий заказ из базы
-async function getNextOrder(token, userName, type, amount, date)
+/* async function getNextOrder(values)
 {
-    const values = [token, userName, type, amount, date];
+    // const values = [token, userName, type, amount, date];
     try
     {
         const result = await this.qquery('SELECT', 'f_get_next_order', values);
@@ -102,13 +113,14 @@ async function getNextOrder(token, userName, type, amount, date)
     }
     catch (e)
     {
+        logger.error({ message: `Query get next order error: ${e.stack}` });
         return ({ errorCode: 1, errorMessage: e.stack, responseCode: 500 });
     }
-}
-pool.getNextOrder = getNextOrder;
+} */
+// pool.getNextOrder = getNextOrder;
 
 // обновляет идентификатор заказа
-async function updateOrder(ordId, ordSysId, date)
+/* async function updateOrder(ordId, ordSysId, date)
 {
     const values = [ordId, ordSysId, date];
     try
@@ -118,13 +130,14 @@ async function updateOrder(ordId, ordSysId, date)
     }
     catch (e)
     {
+        logger.error({ message: `Query update order error: ${e.stack}` });
         return ({ errorCode: 1, errorMessage: e.stack, responseCode: 500 });
     }
 }
-pool.updateOrder = updateOrder;
+pool.updateOrder = updateOrder; */
 
 // обновляет или добавляет токен для посетителя
-async function updateToken(token, ip1, ip2, ua, comm)
+/* async function updateToken(token, ip1, ip2, ua, comm)
 {
     const values = [token, ip1, ip2, ua, comm];
     try
@@ -134,10 +147,11 @@ async function updateToken(token, ip1, ip2, ua, comm)
     }
     catch (e)
     {
+        logger.error({ message: `Query update order error: ${e.stack}` });
         return ({ errorCode: 1, errorMessage: e.stack, responseCode: 500 });
     }
-}
+} */
 
-pool.updateToken = updateToken;
+// pool.updateToken = updateToken;
 
 module.exports = pool;
