@@ -5,74 +5,57 @@
 const express = require('express');
 
 const app = express();
+let classPayment = null;
 const bodyParser = require('body-parser');
 // const compression = require('compression');
 const urlencodedParser = bodyParser.urlencoded({ extended: false });
-
-// подключаем маршруты
 const logger = require('./utils/logger.js');
 const comm = require('./routers/common');
-const dal = require('./utils/dal.js');
+const CPayment = require('./routers/paymentsClass');
+const routes = require('./routers/routes');
 
-const payment = require('./routers/payments');
-const testPayment = require('./routers/test_payment');
-const users = require('./routers/users');
-
-async function smartRouter(request, response)
+function startApp(port)
 {
-    let payload;
-    if (request.method === 'GET') payload = Object.values(request.query);
-    else payload = Object.values(request.body);
-    console.log(payload);
-    // payload.forEach((o) => { if (o === '') return null; return 0; });//!!!!!!
-    const result = await dal.smartRouter(request.path, payload);
-    console.log(result);
-    response.send(result);
+    // app.use(compression());
+    // app.use(rbac.rbac);
+    // логирование
+    app.use(comm.consoleLog);
+    app.disable('x-powered-by');
+
+    app.post('/order', urlencodedParser, classPayment.pay.bind(classPayment));
+    // или вот так es6: router.get('/users', (...args) => userController.list(...args));
+    app.get('/order/:id', classPayment.getOrderStatus.bind(classPayment));
+
+    app.post('/token', urlencodedParser, comm.ctxRouter);
+
+    app.use('/about', routes.aboutRouter);
+    app.use('/news', routes.newsRouter);
+    app.use('/event', routes.eventsRouter);
+    app.use('/club', routes.clubsRouter);
+    app.use('/user', routes.userRouter);
+    app.use('/group', routes.groupRouter);
+    app.use('/game', routes.gamesRouter);
+    app.use('/trainer', routes.trainersRouter);
+    app.use('/', routes.defaultRouter);
+
+    app.listen(port, () => { logger.info({ level: 'info', message: 'Server started.' }); });
 }
-
-// app.use(compression());
-// app.user(comm.rbac);
-// логирование
-app.use(comm.consoleLog);
-
-app.disable('x-powered-by');
-
-app.post('/payment.do', urlencodedParser, payment.pay);
-app.post('/paymentTest.do', urlencodedParser, testPayment.testPay);
-// app.post('/addToken', urlencodedParser, comm.handleToken);
-app.post('/addToken', urlencodedParser, smartRouter);
-// сделать get!!!!
-app.post('/getOrderStatus', urlencodedParser, payment.getOrderStatus);
-
-app.post('/addNews', urlencodedParser, smartRouter);
-app.post('/updateNews', urlencodedParser, smartRouter);
-app.post('/updateClub', urlencodedParser, smartRouter);
-app.post('/addClub', urlencodedParser, smartRouter);
-app.post('/addEvent', urlencodedParser, smartRouter);
-app.post('/updateEvent', urlencodedParser, smartRouter);
-app.get('/get_news_list', smartRouter);
-app.get('/getEventsList', smartRouter);
-app.get('/get_clubs_list', smartRouter);
-
-app.post('/loginUser', urlencodedParser, users.login);
-app.post('/registerUser', urlencodedParser, users.login);
-
-app.get('/about', comm.about);
-app.post('/about', urlencodedParser, comm.about);
 
 function init()
 {
     const environment = process.env.NODE_ENV || 'development';
     const port = process.env.PORT || process.env.SERVER_PORT || 4200;
 
-    payment.setUrls(process.env.TOKEN);
-    testPayment.set_urls(process.env.TEST_TOKEN);
-
     if (environment === 'development')
     {
+        classPayment = new CPayment.CPayment(environment, process.env.TEST_TOKEN);
         logger.info({ message: `Server started at port ${port} in ${environment} mode` });
     }
-    app.listen(port, () => { logger.info({ level: 'info', message: 'Server started.' }); });
+    else
+    {
+        classPayment = new CPayment.CPayment(environment, process.env.TOKEN);
+    }
+    startApp(port);
 }
 
 process.on('uncaughtException', (err) =>
@@ -83,4 +66,3 @@ process.on('uncaughtException', (err) =>
 
 app.init = init;
 app.init();
-// module.exports.app = app;
