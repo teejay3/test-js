@@ -1,10 +1,10 @@
-/* eslint-disable strict */
+/* eslint-disable strict, object-curly-newline */
 
 'use strict';
 
 const { Pool } = require('pg');
 const logger = require('./logger');
-// Pool.prototype.updateNews = updateNews;
+const rules = require('./routing_table');
 
 const pool = new Pool({
     user: process.env.DBUSER,
@@ -18,22 +18,8 @@ const pool = new Pool({
 
 // успех {command: "CALL", rowCount: null, oid: null, rows: Array(0), fields: Array(0), …}
 
-pool.route_list = [
-    { route: '/get_news_list', db_method: 'f_get_news', call_type: 'SELECT' },
-    { route: '/updateNews', db_method: 'p_update_news', call_type: 'CALL' },
-    { route: '/addNews', db_method: 'p_add_news', call_type: 'CALL' },
-    { route: '/get_clubs_list', db_method: 'f_get_clubs', call_type: 'SELECT' },
-    { route: '/updateClub', db_method: 'p_update_club', call_type: 'CALL' },
-    { route: '/addClub', db_method: 'p_add_club', call_type: 'CALL' },
-    { route: '/getEventsList', db_method: 'f_get_events', call_type: 'SELECT' },
-    { route: '/updateEvent', db_method: 'p_update_event', call_type: 'CALL' },
-    { route: '/addEvent', db_method: 'p_add_event', call_type: 'CALL' },
-    { route: '/loginUser', db_method: 'f_login_user', call_type: 'SELECT' },
-    { route: '/registerUser', db_method: 'f_register_user', call_type: 'SELECT' },
-    { route: '/addToken', db_method: 'f_insert_token', call_type: 'SELECT' },
-    { route: 'updateOrder', db_method: 'f_update_order', call_type: 'SELECT' },
-    { route: 'getNextOrder', db_method: 'f_get_next_order', call_type: 'SELECT' },
-];
+pool.routes = rules.routes;
+pool.rules = rules.rules;
 
 async function qquery(callType, dbMethod, params)
 {
@@ -57,7 +43,7 @@ async function qquery(callType, dbMethod, params)
     str += `( ${par} );`;
     try
     {
-        // console.log('_qquery ' + str);
+        console.log(`_qquery ${str}`);
         // console.log('_qquery ' + JSON.stringify(params));
         const result = await pool.query(str, params);
         let tmp = null;
@@ -67,7 +53,7 @@ async function qquery(callType, dbMethod, params)
         {
             tmp = result.rows;
         }
-        else
+        else if (callType === 'CALL')
         {
             tmp = result;
         }
@@ -89,8 +75,8 @@ async function byRoute(route, payload)
 {
     try
     {
-        const r = this.route_list.find((obj) => obj.route === route);
-        if (typeof r === 'undefined') throw new Error('Route not found');
+        const r = this.routes.find((obj) => obj.route === route);
+        if (typeof r === 'undefined') throw new Error(`Route not found ${route}`);
         const result = await this.qquery(r.call_type, r.db_method, payload);
         return result;
     }
@@ -102,56 +88,46 @@ async function byRoute(route, payload)
 }
 pool.byRoute = byRoute;
 
-// получает следующий заказ из базы
-/* async function getNextOrder(values)
+async function byRegexp(ctx)
 {
-    // const values = [token, userName, type, amount, date];
     try
     {
-        const result = await this.qquery('SELECT', 'f_get_next_order', values);
-        return result;
+        const r = pool.rules.find((obj) => obj.path.test(ctx.baseUrl + ctx.url)
+        && obj.method === ctx.method);
+        if (typeof r === 'undefined') throw new Error('Route not found');
+        let payload = null;
+        if (Object.keys(ctx.params).length === 0 && ctx.params.constructor === Object)
+        {
+            // console.log('params is null');
+        }
+        else
+        {
+            payload = Object.values(ctx.params);
+            // console.log(`params is ${ctx.params}`);
+        }
+        if (ctx.method === 'GET' || ctx.method === 'DELETE')
+        {
+            if (payload !== null && typeof payload !== 'undefined' && payload.length > 0) payload = payload.concat(Object.values(ctx.query));
+            else payload = Object.values(ctx.query);
+        }
+        else if (ctx.method === 'POST' || ctx.method === 'PUT')
+        {
+            if (payload !== null && typeof payload !== 'undefined' && payload.length > 0) payload = payload.concat(Object.values(ctx.body));
+            else payload = Object.values(ctx.body);
+        }
+        else
+        {
+            throw new Error(`Unknown method ${ctx.method}`);
+        }
+        console.log(payload);
+        return this.qquery(r.call_type, r.db_method, payload);
     }
     catch (e)
     {
-        logger.error({ message: `Query get next order error: ${e.stack}` });
-        return ({ errorCode: 1, errorMessage: e.stack, responseCode: 500 });
-    }
-} */
-// pool.getNextOrder = getNextOrder;
-
-// обновляет идентификатор заказа
-/* async function updateOrder(ordId, ordSysId, date)
-{
-    const values = [ordId, ordSysId, date];
-    try
-    {
-        const result = await this.qquery('SELECT', 'f_update_order', values);
-        return result;
-    }
-    catch (e)
-    {
-        logger.error({ message: `Query update order error: ${e.stack}` });
+        logger.error({ message: `Query by route error: ${e.stack}` });
         return ({ errorCode: 1, errorMessage: e.stack, responseCode: 500 });
     }
 }
-pool.updateOrder = updateOrder; */
-
-// обновляет или добавляет токен для посетителя
-/* async function updateToken(token, ip1, ip2, ua, comm)
-{
-    const values = [token, ip1, ip2, ua, comm];
-    try
-    {
-        const result = await this.qquery('SELECT', 'f_insert_token', values);
-        return result;
-    }
-    catch (e)
-    {
-        logger.error({ message: `Query update order error: ${e.stack}` });
-        return ({ errorCode: 1, errorMessage: e.stack, responseCode: 500 });
-    }
-} */
-
-// pool.updateToken = updateToken;
+pool.byRegexp = byRegexp;
 
 module.exports = pool;
