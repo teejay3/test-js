@@ -1,73 +1,61 @@
-'use strict';
+/* eslint-disable strict */
 
-const fs = require('fs');
+'use strict';
 
 const dal = require('../utils/dal');
 
-const accessLog = 'access.log';
-
-// Добавляет новый токен в базу и больше ничего не делает
-async function handleToken(request, response)
-{
-// console.log('token request');
-// console.log(request.body);
-    const { token } = request.body;
-    const { ip1 } = request.body.ip1;
-    const { ip2 } = request.body.ip2;
-    const { ua } = request.body.ua;
-    const { comm } = request.body.comm;
-    if (token === null) response.status(200);
-
-    try
-    {
-        const result = await dal.updateToken(token, ip1, ip2, ua, comm);
-        response.status(200).send(result);
-    }
-    catch (e)
-    {
-        console.log(e.stack);
-        response.status(200).send({ errorCode: 0, errorText: 'Unable to handle token' });
-    }
-    /* const values = [token, ip1, ip2, ua, comm];
-
-    try{
-         pool.query('SELECT * FROM f_insert_token($1, $2, $3, $4, $5)', values, (error, results) => {
-            if (error)
-            {
-             console.log(error.stack);
-            }
-            response.status(201).send({"ok":token});
-        });
-    }
-    catch(e)
-    {
-        console.log(e);
-        response.status(200).send({"errorCode": 0, "errorText":"Unable to handle token"});
-    } */
-}
-
-/* app.post('/user', urlencodedParser, function(request, response)
-{
-    console.log(request.body);
-    if(!request.body) return response.sendStatus(400);
-    response.json(`${request.body.userName} - ${request.body.userAge}`);
-}); */
+const logger = require('../utils/logger');
 
 function about(request, response)
 {
-    response.send({ ok: 'wrong path' });
+    if (request.method === 'GET')
+    {
+        response.send({
+            errorCode: 1, errorMessage: 'Заказ не найден', merchantOrderParams: [], query: request.query,
+        });
+    }
+    if (request.method === 'POST')
+    {
+        response.send({ errorCode: 1, errorMessage: 'Заказ не найден', data: request.body });
+    }
 }
 
 function consoleLog(request, response, next)
 {
-    // let now = new Date();
     const ip = `${request.headers['x-forwarded-for']} ${request.connection.remoteAddress}`;
-    const data = `${new Date()}\t${ip}\t${request.method}\t${request.url}\t${request.get('user-agent')}`;
-    console.log(data);
-    fs.appendFile(accessLog, `${data}\n`, () => { });
+    logger.log({
+        level: 'info', message: `ip: ${ip} method: ${request.method}, url: ${request.url}, ua: ${request.get('user-agent')}`,
+    });
     next();
 }
 
-module.exports.handleToken = handleToken;
+async function smartRouter(request, response)
+{
+    let payload;
+    if (request.method === 'GET') payload = Object.values(request.query);
+    else payload = Object.values(request.body);
+    console.log(payload);
+    // payload.forEach((o) => { if (o === '') return null; return 0; });//!!!!!!
+    const result = await dal.smartRouter(request.path, payload);
+    console.log(result);
+    response.send(result);
+}
+module.exports.smartRouter = smartRouter;
+
+async function ctxRouter(request, response)
+{
+    console.log(`${request.baseUrl} ${request.path} ${request.url} ${request.params}`);
+    try
+    {
+        const result = await dal.routerByRegexp(request);
+        response.send(result);
+    }
+    catch (e)
+    {
+        console.log(e.stack);
+        response.send(e.stack);
+    }
+}
+module.exports.ctxRouter = ctxRouter;
 module.exports.about = about;
 module.exports.consoleLog = consoleLog;
