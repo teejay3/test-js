@@ -20,6 +20,7 @@ module.exports.newsRouter = newsRouter;
 
 const eventsRouter = express.Router();
 
+eventsRouter.get('/types', comm.ctxRouter);
 eventsRouter.put('/:id', urlencodedParser, comm.ctxRouter);
 eventsRouter.delete('/:id', comm.ctxRouter);
 eventsRouter.post('/', urlencodedParser, comm.ctxRouter);
@@ -38,8 +39,12 @@ module.exports.clubsRouter = clubsRouter;
 
 const userRouter = express.Router();
 
+userRouter.get('/:id/group', comm.ctxRouter);
+userRouter.put('/:id/pass', urlencodedParser, comm.ctxRouter);
+userRouter.put('/:id/admpass', urlencodedParser, comm.ctxRouter);
 userRouter.get('/types', comm.ctxRouter);
 userRouter.get('/roles', comm.ctxRouter);
+userRouter.get('/teachers', comm.ctxRouter);
 userRouter.post('/login', urlencodedParser, users.login);
 userRouter.get('/:id', comm.ctxRouter);
 userRouter.put('/:id', urlencodedParser, comm.ctxRouter);
@@ -53,6 +58,7 @@ const groupRouter = express.Router();
 
 groupRouter.get('/:id', comm.ctxRouter);
 groupRouter.put('/:id/student/:studId', urlencodedParser, comm.ctxRouter);
+groupRouter.get('/:id/notstudent/', comm.ctxRouter);
 groupRouter.get('/:id/student/', comm.ctxRouter);
 groupRouter.delete('/:id/student/:studId', comm.ctxRouter);
 groupRouter.delete('/:id', comm.ctxRouter);
