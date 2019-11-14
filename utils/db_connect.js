@@ -2,6 +2,7 @@
 
 'use strict';
 
+const fs = require('fs');
 const { Pool } = require('pg');
 const logger = require('./logger');
 const rules = require('./routing_table');
@@ -18,29 +19,16 @@ function getConfig()
         database: process.env.DBNAME,
         password: process.env.DBPASSWORD,
         port: process.env.DBPORT,
-        ssl: true };
+        ssl: {
+            rejectUnauthorized: false,
+            key: fs.readFileSync(`${__dirname}/cert/postgresql.key`).toString(),
+            cert: fs.readFileSync(`${__dirname}/cert/postgresql.crt`).toString(),
+        },
+    };
 }
 
 const config = getConfig();
 
-// console.log(config);
-
-/* connectionString: process.env.DATABASE_URL,
-
-PGUSER=dbuser \
-PGHOST=database.server.com \
-PGPASSWORD=secretpassword \
-PGDATABASE=mydb \
-PGPORT=3211 */
-
-/* const pool = new Pool({
-    user: process.env.DBUSER,
-    host: process.env.DBHOST,
-    database: process.env.DBNAME,
-    password: process.env.DBPASSWORD,
-    port: process.env.DBPORT,
-    ssl: true,
-}); */
 const pool = new Pool(config);
 // ошибка
 // {"errorCode":"6","errorMessage":"Заказ не найден","merchantOrderParams":[],"attributes":[]}
@@ -73,8 +61,13 @@ async function qquery(callType, dbMethod, params)
     try
     {
         // console.log(`_qquery ${str}`);
-        // console.log('_qquery ' + JSON.stringify(params));
-        const result = await pool.query(str, params);
+        const tmpArr = [];
+        for (let i = 0; i < params.length; i++)
+        {
+            tmpArr[i] = params[i] || null;
+        }
+        // console.log('_qquery ' + JSON.stringify(tmpArr));
+        const result = await pool.query(str, tmpArr);
         let tmp = null;
         // console.log(result);
         // return result;
