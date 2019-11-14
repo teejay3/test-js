@@ -91,15 +91,15 @@ class CPayment
             // попробуем найти цену на услугу из массива
             amount = this.payments.find((e) => e.type === type).price;
             data.amount = amount;
-            console.log(`price amount ${data.amount}`);
+            // console.log(`price amount ${data.amount}`);
             const orderNum = await this.getNextOrder(data);
-            console.log(`next order ${orderNum}`);
+            // console.log(`next order ${orderNum}`);
             if (orderNum > 0)
             {
                 const payUrl = `${this.paymentUrl}&currency=643&language=ru&orderNumber=${orderNum}&amount=${data.amount}&returnUrl=${this.successUrl + orderNum}&sessionTimeoutSecs=600`;
-                console.log(`pay url ${payUrl}`);
+                // console.log(`pay url ${payUrl}`);
                 const bdy = await this.makeRequest(payUrl);
-                console.log(`response ${bdy}`);
+                // console.log(`response ${bdy}`);
                 this.updateOrder(orderNum, JSON.parse(bdy).orderId);
                 logger.warn({ message: `Order update ${orderNum} ${JSON.parse(bdy).orderId}` });
                 response.send(bdy);
@@ -119,14 +119,14 @@ class CPayment
     async getOrderStatus(request, response)
     {
         const { id: orderId } = request.params;
-        console.log(orderId);
+        // console.log(orderId);
         if (orderId === null) throw new Error('Номер заказа не передан');
         try
         {
             const statUrl = `${this.statusUrl}&orderId=${orderId}`;
-            console.log(`order status ${statUrl}`);
+            // console.log(`order status ${statUrl}`);
             const bdy = await this.makeRequest(statUrl);
-            console.log(`status response ${bdy}`);
+            // console.log(`status response ${bdy}`);
             response.send(bdy);
         }
         catch (e)
